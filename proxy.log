@@ -1,12 +1,4 @@
-1: GET http://www.testingmcafeesites.com/testcat_au.html HTTP/1.1 from 24.163.80.76 @ Tue Feb 22 06:50:47 2022
+1: GET http://go.com/ HTTP/1.1 from 24.163.80.76 @ Wed Feb 23 06:10:12 2022
 
+1: not in cache.
 1: cached, but requires re-validation
-2: GET http://www.testingmcafeesites.com/testcat_au.html HTTP/1.1 from 24.163.80.76 @ Tue Feb 22 06:51:27 2022
-
-2in cache, 2: cached, but requires re-validation
-3: GET http://www.testingmcafeesites.com/testcat_au.html HTTP/1.1 from 24.163.80.76 @ Tue Feb 22 06:52:22 2022
-
-3in cache, 3: not cacheable, because not 200 ok
-4: GET http://www.testingmcafeesites.com/testcat_au.html HTTP/1.1 from 24.163.80.76 @ Tue Feb 22 06:52:30 2022
-
-4in cache, 4: cached, but requires re-validation

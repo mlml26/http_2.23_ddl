@@ -1,5 +1,5 @@
 #include "all.hpp"
-//#include "global.hpp"
+#include "global.hpp"
 std::ofstream logFile("/home/ml607/http_2.21/proxy.log");
 Cache cache(1000); 
 pthread_mutex_t cache_lock = PTHREAD_MUTEX_INITIALIZER;
@@ -45,27 +45,32 @@ void * handleFunction(void * args){
     Request input(clientText);
     cout << "@@@@@@ request: " <<input.getRequestLines() << "@@@@@@@" << endl;
     if(method==0 || method==1){
+      pthread_mutex_lock(&cache_lock);
       logFile << svBundle.tId << ": " << input.getRequestLine() << " from " << clientIpAddr.data() << " @ " << currentTime() << endl;
-      
+      pthread_mutex_unlock(&cache_lock);
         if((cache).inCache(input)) {
             cout << "~~~~~~~~~~~in cache~~~~~~~~~~~~" << endl;
-	    logFile << svBundle.tId << "in cache, ";
+	    pthread_mutex_lock(&cache_lock);
+	    logFile << svBundle.tId << ": in cache, ";
+	    pthread_mutex_unlock(&cache_lock);
 	    //            pthread_mutex_lock(&cache_lock);
             Response rsp = cache.get(input);
             //pthread_mutex_unlock(&cache_lock);
             cout << "----------------old response header:"<< rsp.getHeader()<< "\n------------"<< endl;
             if(rsp.needRevalidation()) {
-	      rsp = cache.revalidation(input, rsp, clientSockfd, svBundle.tId);
+	      rsp = (cache).revalidation(input, rsp, clientSockfd, svBundle.tId);
             }
             else {
                //logfile
+	      pthread_mutex_lock(&cache_lock);
 	      logFile << "valid" <<endl;
+	      pthread_mutex_unlock(&cache_lock);
             }
-            
+            logFile << svBundle.tId << ": Responding " << rsp.getRspFirstLine() << endl;
             send(accServerfd, rsp.getResponse().data(), rsp.getResponse().size(), 0);
         }
         else{
-            cout << "not in cache." << endl;
+            logFile << svBundle.tId << ": not in cache." << endl;
             std::vector<std::vector<char> > responseInfo = sendDataByGetPost(clientSockfd, accServerfd);
             std::vector<char> responseLines = responseInfo[0];
             std::vector<char> responseBody = responseInfo[1];
@@ -75,8 +80,9 @@ void * handleFunction(void * args){
             //pthread_mutex_lock(&cache_lock);
             (cache).storeResponse(input, newrsp, svBundle.tId);
             //pthread_mutex_unlock(&cache_lock);
-            cout << "store in cache" << endl;
-        }
+            //cout << "store in cache" << endl;
+	    
+	}
      
       //std::vector<std::vector<char> > responseInfo = sendDataByGetPost(clientSockfd, accServerfd);
       //std::vector<char> responseLines = responseInfo[0];

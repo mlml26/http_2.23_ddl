@@ -3,7 +3,7 @@
 #include <cstdlib>
 #include <fstream>
 #include <iostream>
-//#include "global.hpp"
+#include "global.hpp"
 //extern std::ofstream logFile;
 extern Cache cache; 
 struct serverCacheBundle{

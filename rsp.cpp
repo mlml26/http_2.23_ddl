@@ -1,5 +1,5 @@
+#include "global.hpp"
 #include "rsp.hpp"
-//#include "rsp.h"
 std::string Response::locate(std::string s){
   int p1 = header.find(s);
   if(p1 == -1) {return "";}
@@ -9,7 +9,8 @@ std::string Response::locate(std::string s){
   return res;
 }
 std::string Response::getDate() {
-  return locate("Date");
+  return locate("Date")=="" ? locate("date"): locate("Date");
+  //  return locate("Date");
 }
 
 time_t Response::getTime(std::string _time) {
@@ -25,8 +26,8 @@ time_t Response::getTime(std::string _time) {
 
 double Response::getCurrentAge() {
     std::string date = getDate();
-  time_t responseDate = getTime(date);
-    time_t now = time(NULL);
+    time_t responseDate = getTime(date);
+    time_t now = time(NULL) + 18000;
   return difftime(now, responseDate);
 }
 std::string Response::getStatus(){
@@ -46,25 +47,27 @@ std::string Response::getMaxAge(){
   return cacheControl.substr(p1+8, p2-p1-8);
 }
 std::string Response::getLastModify() {
-  return locate("Last-Modified");
+  return locate("Last-Modified")=="" ? locate("last-modified"):locate("Last-Modified");
+  //return locate("Last-Modified");
 }
 std::string Response::getExpire() {
-  return locate("Expires");
+  return locate("Expires") == "" ? locate("expires"): locate("Expires");
 }
 std::string Response::getCacheControl() {
-  return locate("Cache-Control");
+  return locate("Cache-Control")=="" ? locate("cache-control"):locate("Cache-Control");
+  //  return locate("Cache-Control");
 }
 std::string Response::getEtag() {
-  return locate("ETag");
+  return locate("ETag")== "" ? locate("etag"): locate("ETag");
+  //return locate("ETag");
 }
 bool Response::is_no_cache() {
     std::string cc = getCacheControl();
   if(cc == "") return false;
   int p = cc.find("no-cache");
   if(p == -1) return false;
-  std::cout << "in cache, requires validation" << std::endl;
+  logFile << "in cache, requires validation" << std::endl;
   return true;
-
 }
 bool Response::is_no_store() {
     std::string cc = getCacheControl();
@@ -83,22 +86,24 @@ bool Response::isFresh() {
     fresh = currentAge < max_age;
     if(!fresh) {
       //放进logfile里
-        std::cout << "in cache, requires validation" << std::endl;
+        logFile << "in cache, requires validation" << std::endl;
+    
+	return false;
     }
-    return fresh;
   }
   //if expires exists, compare Expire time and current time
     std::string expiresline = getExpire();
   if(expiresline != "") {
     time_t expires = getTime(expiresline);
-    time_t current = time(NULL);
+    time_t current = time(NULL) + 18000;
     fresh = current < expires;
     if(!fresh) {
       //放进logfile里,
-        std::cout <<"in cache, but expired at "<<  expiresline  <<std::endl;
+        logFile <<"in cache, but expired at "<<  expiresline  <<std::endl;
     }
-    return fresh;
-  }
+	return fresh;
+    
+   }
 //  // if Last modify exists, calculate the freshness time, and then compare freshness time and current age;
 //
 //    string lastModify = getLastModify();
@@ -116,14 +121,14 @@ bool Response::isFresh() {
 //        }
 //        return fresh;
 //      }
-      return false;
+      return fresh;
     }
     bool Response::needRevalidation(){
-        return !is_no_cache() || !isFresh() ||getEtag() != "" || getLastModify() != "";
-        
+      
+      return !isFresh() || !is_no_cache() || getEtag() != "" || getLastModify() != "";
     }
     long Response::getContentLength() {
-        std::string len = locate("Content-Length");
+      std::string len = locate("Content-Length")=="" ? locate("content-length"):locate("Content-Length");
         std::cout << len << std::endl;
       long ans = atoi(len.c_str());
         std::cout << ans << std::endl;

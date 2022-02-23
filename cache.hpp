@@ -18,7 +18,7 @@
 using namespace std;
 //pthread_mutex_t cache_lock = PTHREAD_MUTEX_INITIALIZER;
 class Cache {
-public:    pthread_t c_lock;
+  /*public:    pthread_t c_lock;
     class Node{
     public:
         Request input;
@@ -38,9 +38,13 @@ public:    pthread_t c_lock;
     //key:first line, value: Node
     unordered_map<string, Node*> map;
    // int current_size;
-
-    
+   */
+    size_t capacity;
+    size_t cur_size;
+    //key:first line, value: Node
+    unordered_map<string, Response> map;
 public:
+  /*
     void printCache() {
         cout << "current Cache :"<< endl;
         Node * node = head->next;
@@ -49,21 +53,28 @@ public:
             cout << node->rsp.getRspFirstLine() << endl;
         }
         
+	}*/
+  void printCache() {
+        cout << "current Cache :"<< endl;
+        for(auto m : map) {
+            cout << m.first << endl;
+        }
     }
     //constructor
     Cache(size_t capacity): capacity(capacity){
-        head = new Node();
+      /*    head = new Node();
         tail = new Node();
         head->next = tail;
-        tail->pre = head;
+        tail->pre = head;*/
     }
     ~Cache() {
-        while(head!=NULL) {
+      /* while(head!=NULL) {
             Node* temp = head->next;
             delete head;
             head = temp;
-        }
+	    }*/
     }
+  /*
     void put(Request input, Response rsp) {
         //pthread_mutex_lock(&cache_lock);
         string key = input.getRequestLine();
@@ -116,7 +127,39 @@ public:
         head -> next = node;
         return node->rsp;
     }
+  */
+  bool inCache(Request input) {
+        const auto & it = map.find(input.getRequestLine());
+        if(it == map.end()) return false;
+        return true;
+    }
+    void put(Request input, Response rsp) {
+        string key = input.getRequestLine();
+        //if key exists
+        if(inCache(input)) {
+            const auto & it = map.find(key);
+            map.erase(it);
+            map.insert(make_pair(key, rsp));
+        }
+        else{// if not exist, create a new node and add it to the head;
+            map.insert(make_pair(key, rsp));
+            cur_size++;
+            if(cur_size > capacity) map.erase(map.begin());
+            }
+    }
     
+    //if it is in cache, return fulltext
+    Response get(Request input){
+        //if exists, move the node to the front and return it
+        string key = input.getRequestLine();
+        const auto & it = map.find(key);
+	Response rsp = map[key];
+	map.erase(it);
+	map.insert(make_pair(key, rsp));
+        //map.erase(it);
+        
+        return rsp;
+    }
   bool storeResponse(Request input, Response rsp, int tId) {
         //200ok && x no-store && x private: needs store response
         if (rsp.getStatus() == "200" && !rsp.isPrivate() && !rsp.is_no_store()) {
@@ -126,17 +169,22 @@ public:
             //store response operation: <key, rsp> 加进cache里
             string expire = rsp.getExpire();
             if(expire.size()){
+	      pthread_mutex_lock(&cache_lock);
 	      logFile<< tId << ": cached, but expires at " << rsp.getExpire() << endl;
                 //logfile:"cached, expires at" + "EXPIRETIME"
+	      pthread_mutex_unlock(&cache_lock);
             }
             else{
-                //logfile:"cached, but required re-validation"
+              pthread_mutex_lock(&cache_lock);
+	      //logfile:"cached, but required re-validation"
 	      logFile << tId << ": cached, but requires re-validation"<< endl;
-            }
+	      pthread_mutex_unlock(&cache_lock);
+	    }
             return true;
         }
         //cannot store response
         //1. not 200 ok
+	pthread_mutex_lock(&cache_lock);
         if(rsp.getStatus() != "200"){
             //not cacheable + because not 200 ok
             logFile << tId << ": not cacheable, because not 200 ok" << endl;
@@ -149,25 +197,31 @@ public:
             //not cacheable + because is no-store
             logFile << tId << ": not cacheable, because is no-store" << endl;
         }
+	pthread_mutex_unlock(&cache_lock);
         return false;
     }
     //return updated response
   Response revalidation(Request input, Response rsp, int socket, int tId){
         string etag = rsp.getEtag();
+	cout << "revalidation: response header:\n"<< rsp.getHeader() <<endl; 
+	cout << "revalidation: etag:"<< etag << endl;
         string lastModify = rsp.getLastModify();
+	cout <<	"revalidation: lastModify:"<< lastModify << endl;
         string newinput = input.getRequestLines();
         //1. if has etag, send "if-none-match"
     if(etag != "") {
             //string add = "If-None-Match: " + etag + string("\r\n");
             //replacedInput.insert(replacedInput.end() - 2, add.begin(), add.end());
-            string adder = string("If-None-Match: ") + etag + string("\r\n");
-            cout << etag << endl;
+      cout << "I'm here. Etag exists. Adding If-none-match header." << endl;
+      string adder = string("If-None-Match: ") + etag + string("\r\n");
+            cout <<"Etag: "<< etag << endl;
             newinput = newinput.insert(newinput.length()-2, adder);
             //send(socket,message.data(),message.size()+1,0);
         //  cout << "Newinput :  \n" << newinput.data() << endl;
         }
         //2. if has last-modify, send if-modified-since
         if(lastModify != "") {
+	  cout << "I'm here. lastModify exists. Adding If-Modified-Since header." << endl;
             string adder = string("If-Modified-Since: ") + lastModify + string("\r\n");
             newinput = newinput.insert(newinput.length()-2, adder);
             //replacedInput = input + string("\r\n") + string("If-Modified-Since: ") + lastModify + string("\r\n");
@@ -180,7 +234,7 @@ public:
       cout << "failed to send the new request." << endl;
       exit(EXIT_FAILURE);
     }
-    cout << "Requesting “" << input.getRequestLine() << "” from " << input.getHost() << endl;
+    logFile << tId << ": Requesting “" << input.getRequestLine() << "” from " << input.getHost() << endl;
         //recieve new response
     /*        vector<char> v;
     v.resize(65536);
@@ -218,8 +272,10 @@ public:
        cout << "$$$$$$$^^^^^^^^^^^^^^New response: \n" << full_text.data() << "^^^^^^^^^^^^^^^^$$$$$$$$$$$" <<endl;
     // Response newResponse(v);
         Response new_rsp(full_text);
-        cout << "Received “" << new_rsp.getRspFirstLine() << "” from " << input.getHost() << endl;
-        if(new_rsp.getStatus() == "304") {
+	pthread_mutex_lock(&cache_lock);
+        logFile << tId << ": Received “" << new_rsp.getRspFirstLine() << "” from " << input.getHost() << endl;
+	pthread_mutex_unlock(&cache_lock);
+	if(new_rsp.getStatus() == "304") {
       return rsp;
         }
         else{
