@@ -66,7 +66,9 @@ bool Response::is_no_cache() {
   if(cc == "") return false;
   int p = cc.find("no-cache");
   if(p == -1) return false;
+  pthread_mutex_lock(&cache_lock); 
   logFile << "in cache, requires validation" << std::endl;
+  pthread_mutex_unlock(&cache_lock); 
   return true;
 }
 bool Response::is_no_store() {
@@ -86,8 +88,9 @@ bool Response::isFresh() {
     fresh = currentAge < max_age;
     if(!fresh) {
       //放进logfile里
-        logFile << "in cache, requires validation" << std::endl;
-    
+      pthread_mutex_lock(&cache_lock); 
+      logFile << "in cache, requires validation" << std::endl;
+      pthread_mutex_unlock(&cache_lock); 
 	return false;
     }
   }
@@ -99,7 +102,9 @@ bool Response::isFresh() {
     fresh = current < expires;
     if(!fresh) {
       //放进logfile里,
-        logFile <<"in cache, but expired at "<<  expiresline  <<std::endl;
+      pthread_mutex_lock(&cache_lock); 
+      logFile <<"in cache, but expired at "<<  expiresline  <<std::endl;
+      pthread_mutex_unlock(&cache_lock); 
     }
 	return fresh;
     

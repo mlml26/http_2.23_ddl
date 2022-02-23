@@ -11,7 +11,7 @@
 #include <netdb.h>
 #include <algorithm>
 #define MAX_TEXTLEN 65536 //一定要设置成2的倍数
-
+#include "excpt.hpp"
 //using namespace std;
 
 struct serverBundle{
@@ -52,3 +52,4 @@ serverBundle acceptRequestFromClient(int server_sockfd);
 std::vector<std::vector<char> > acceptProcessFromServer(serverBundle svBundle);
 std::vector<std::vector<char> > parseHttpRequest(std::vector<char> client_text);
 std::vector<std::vector<char> > sendDataByGetPost(int client_sockfd, int server_sockfd);
+void sendDataByConnect(int clientSockfd, int accServerfd);

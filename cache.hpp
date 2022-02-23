@@ -144,8 +144,13 @@ public:
         else{// if not exist, create a new node and add it to the head;
             map.insert(make_pair(key, rsp));
             cur_size++;
-            if(cur_size > capacity) map.erase(map.begin());
+            if(cur_size > capacity) {
+	      map.erase(map.begin());
+	      pthread_mutex_lock(&cache_lock);
+              logFile<< "(no-id): NOTE evicted " << input.getURL() << " from cache" << endl;
+              pthread_mutex_unlock(&cache_lock);
             }
+	}
     }
     
     //if it is in cache, return fulltext
@@ -174,7 +179,7 @@ public:
                 //logfile:"cached, expires at" + "EXPIRETIME"
 	      pthread_mutex_unlock(&cache_lock);
             }
-            else{
+	else{
               pthread_mutex_lock(&cache_lock);
 	      //logfile:"cached, but required re-validation"
 	      logFile << tId << ": cached, but requires re-validation"<< endl;
@@ -184,20 +189,25 @@ public:
         }
         //cannot store response
         //1. not 200 ok
-	pthread_mutex_lock(&cache_lock);
+	//pthread_mutex_lock(&cache_lock);
         if(rsp.getStatus() != "200"){
-            //not cacheable + because not 200 ok
+	  pthread_mutex_lock(&cache_lock);
+	  //not cacheable + because not 200 ok
             logFile << tId << ": not cacheable, because not 200 ok" << endl;
-        }
+	    pthread_mutex_unlock(&cache_lock);
+	}
         else if(rsp.isPrivate()) {
+	  pthread_mutex_lock(&cache_lock);
             //not cacheable + because is private
             logFile << tId << ": not cacheable, because is private" << endl;
-        }
+	    pthread_mutex_unlock(&cache_lock);
+	}
         else if(rsp.is_no_store()) {
+	  pthread_mutex_lock(&cache_lock);
             //not cacheable + because is no-store
             logFile << tId << ": not cacheable, because is no-store" << endl;
-        }
-	pthread_mutex_unlock(&cache_lock);
+	    pthread_mutex_unlock(&cache_lock);
+	}
         return false;
     }
     //return updated response

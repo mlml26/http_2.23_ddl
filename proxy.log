@@ -1,4 +1,36 @@
-1: GET http://go.com/ HTTP/1.1 from 24.163.80.76 @ Wed Feb 23 06:10:12 2022
+1: CONNECT teams.events.data.microsoft.com:443 HTTP/1.1 from 24.163.80.76 @ Wed Feb 23 20:27:17 2022
+1: Responding HTTP/1.1 200 OK
 
-1: not in cache.
-1: cached, but requires re-validation
+
+2: CONNECT api-glb-use1b.smoot.apple.com:443 HTTP/1.1 from 24.163.80.76 @ Wed Feb 23 20:27:19 2022
+2: Responding HTTP/1.1 200 OK
+
+
+3: CONNECT www.baidu.com:443 HTTP/1.1 from 24.163.80.76 @ Wed Feb 23 20:27:21 2022
+3: Responding HTTP/1.1 200 OK
+
+
+4: CONNECT www.baidu.com:443 HTTP/1.1 from 24.163.80.76 @ Wed Feb 23 20:27:21 2022
+4: Responding HTTP/1.1 200 OK
+
+
+5: CONNECT timhch-my.sharepoint.com:443 HTTP/1.1 from 24.163.80.76 @ Wed Feb 23 20:27:21 2022
+5: Responding HTTP/1.1 200 OK
+
+
+8: CONNECT pss.bdstatic.com:443 HTTP/1.1 from 24.163.80.76 @ Wed Feb 23 20:27:23 2022
+8: Responding HTTP/1.1 200 OK
+
+
+9: CONNECT dss0.bdstatic.com:443 HTTP/1.1 from 24.163.80.76 @ Wed Feb 23 20:27:23 2022
+9: Responding HTTP/1.1 200 OK
+
+
+6: CONNECT gimg3.baidu.com:443 HTTP/1.1 from 24.163.80.76 @ Wed Feb 23 20:27:24 2022
+6: Responding HTTP/1.1 200 OK
+
+
+10: CONNECT hectorstatic.baidu.com:443 HTTP/1.1 from 24.163.80.76 @ Wed Feb 23 20:27:24 2022
+10: Responding HTTP/1.1 200 OK
+
+

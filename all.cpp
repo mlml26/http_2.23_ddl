@@ -1,7 +1,7 @@
 #include "all.hpp"
 #include "global.hpp"
 std::ofstream logFile("/home/ml607/http_2.21/proxy.log");
-Cache cache(1000); 
+Cache cache(3); 
 pthread_mutex_t cache_lock = PTHREAD_MUTEX_INITIALIZER;
 string currentTime() {
     time_t now = time(0);
@@ -27,15 +27,24 @@ void * handleFunction(void * args){
     std::vector<char> clientText = accInfo[1];
     std::vector<std::vector<char> > requestInfo = parseHttpRequest(clientText);
     int method = requestInfo[0][0];
-    std::vector<char> requestLines = requestInfo[1];
-    std::vector<char> serverIpAddr = requestInfo[2];
-    std::cout << "!!!!!!! method is: " << method << "\n";
+    std::vector<char> requestLines;
+    std::vector<char> serverIpAddr;
+    //    std::cout << "!!!!!!! method is: " << method << "\n";
     int port;
     if(method==0 || method==1){ //GET, POST
-        port = 80;
+      
+      port = 80;
+      requestLines = requestInfo[1];
+      serverIpAddr = requestInfo[2];
+      std::cout << "serverIpAddr: " << serverIpAddr.data() << "\n";
+      std::cout << "!!!!!!! method is: " << method << "\n";    
     }
     else{ //CONNECT
         port = 443;
+	serverIpAddr = requestInfo[1];
+	std::cout << "serverIpAddr: " << serverIpAddr.data() << "\n";
+	std::cout << "!!!!!!! method is: " << method << "\n"; 
+
     }
 
     Client c(serverIpAddr.data(), port);
@@ -44,15 +53,21 @@ void * handleFunction(void * args){
 
     Request input(clientText);
     cout << "@@@@@@ request: " <<input.getRequestLines() << "@@@@@@@" << endl;
+    pthread_mutex_lock(&cache_lock);
+    logFile << svBundle.tId << ": " << input.getRequestLine() << " from " << clientIpAddr.data() << " @ " << currentTime();
+    pthread_mutex_unlock(&cache_lock);
     if(method==0 || method==1){
-      pthread_mutex_lock(&cache_lock);
-      logFile << svBundle.tId << ": " << input.getRequestLine() << " from " << clientIpAddr.data() << " @ " << currentTime() << endl;
-      pthread_mutex_unlock(&cache_lock);
+      //Request input(clientText);
+      //cout << "@@@@@@ request: " <<input.getRequestLines() << "@@@@@@@" << endl; 
+      c.sendFromClient(clientSockfd, requestLines);  
+      //  pthread_mutex_lock(&cache_lock);
+      //logFile << svBundle.tId << ": " << input.getRequestLine() << " from " << clientIpAddr.data() << " @ " << currentTime();
+      //pthread_mutex_unlock(&cache_lock);
         if((cache).inCache(input)) {
             cout << "~~~~~~~~~~~in cache~~~~~~~~~~~~" << endl;
-	    pthread_mutex_lock(&cache_lock);
-	    logFile << svBundle.tId << ": in cache, ";
-	    pthread_mutex_unlock(&cache_lock);
+	    //pthread_mutex_lock(&cache_lock);
+	    //logFile << svBundle.tId << ": in cache, ";
+	    //pthread_mutex_unlock(&cache_lock);
 	    //            pthread_mutex_lock(&cache_lock);
             Response rsp = cache.get(input);
             //pthread_mutex_unlock(&cache_lock);
@@ -63,37 +78,51 @@ void * handleFunction(void * args){
             else {
                //logfile
 	      pthread_mutex_lock(&cache_lock);
-	      logFile << "valid" <<endl;
+	      logFile << svBundle.tId << ": in cache,valid" <<endl;
 	      pthread_mutex_unlock(&cache_lock);
             }
             logFile << svBundle.tId << ": Responding " << rsp.getRspFirstLine() << endl;
             send(accServerfd, rsp.getResponse().data(), rsp.getResponse().size(), 0);
         }
         else{
+	    pthread_mutex_lock(&cache_lock); 
             logFile << svBundle.tId << ": not in cache." << endl;
-            std::vector<std::vector<char> > responseInfo = sendDataByGetPost(clientSockfd, accServerfd);
+	    logFile << svBundle.tId << ": Requesting “" << input.getRequestLine() << "” from " << input.getHost() << endl;
+	    pthread_mutex_unlock(&cache_lock); 
+	    std::vector<std::vector<char> > responseInfo = sendDataByGetPost(clientSockfd, accServerfd);
             std::vector<char> responseLines = responseInfo[0];
             std::vector<char> responseBody = responseInfo[1];
             //cout << "***responseLines: " << responseLines.data() << "*********" << endl;
             cout << "***response_fulltext: " << responseBody.data() << "**********" <<endl;
             Response newrsp(responseBody);
+	    pthread_mutex_lock(&cache_lock);
+	    logFile << svBundle.tId << ": Received “" << newrsp.getRspFirstLine() << "” from " << input.getHost() << endl;
+	    pthread_mutex_unlock(&cache_lock);
             //pthread_mutex_lock(&cache_lock);
             (cache).storeResponse(input, newrsp, svBundle.tId);
             //pthread_mutex_unlock(&cache_lock);
             //cout << "store in cache" << endl;
-	    
+	    pthread_mutex_lock(&cache_lock);
+	    logFile << svBundle.tId << ": Responding " << newrsp.getRspFirstLine() << endl;
+	    pthread_mutex_unlock(&cache_lock);
 	}
-     
+	//logFile << svBundle.tId << ": Responding " << rsp.getRspFirstLine() << endl;
       //std::vector<std::vector<char> > responseInfo = sendDataByGetPost(clientSockfd, accServerfd);
       //std::vector<char> responseLines = responseInfo[0];
       //std::vector<char> responseBody = responseInfo[1];
     }
     else{
-        //do something
+      const char * responseLine = "HTTP/1.1 200 OK\r\n\r\n";
+      pthread_mutex_lock(&cache_lock);
+      logFile << svBundle.tId << ": Responding " << responseLine << endl;
+      pthread_mutex_unlock(&cache_lock);
+      send(accServerfd, responseLine, strlen(responseLine), 0);
+      sendDataByConnect(clientSockfd, accServerfd);
+      //do something
     }
     
-    close(accServerfd);
-    close(clientSockfd);
+    //close(accServerfd);
+    //    close(clientSockfd);
 
     return NULL;
 }
